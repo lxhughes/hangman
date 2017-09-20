@@ -1,0 +1,339 @@
+<html>
+<head>
+<title>Hangman</title>
+
+<!--This is the CSS for formatting, especially the absolute positioning of the hangman-->
+
+<link rel="stylesheet" type="text/css" href="/css/style.css">
+<style type="text/css">
+.specialtallbox {
+	height: 470px;
+}
+.specialsmallbox {
+	width: 300px;
+}
+.spacedletters {
+	letter-spacing: 3px;
+	word-spacing: 20px;
+}
+.noose
+{
+	position: absolute;
+	top: 50px;
+	right: 50px;
+	float: right;
+}
+.head
+{
+	position: absolute;
+	top: 95px;
+	right: 200px;
+	float: right;
+}
+.torso
+{
+	position: absolute;
+	top: 157px;
+	right: 223px;
+	float: right;
+}
+.leftarm
+{
+	position: absolute;
+	top:190px;
+	right: 225px;
+	float: right;
+}
+.rightarm
+{
+	position: absolute;
+	top:190px;
+	right: 150px;
+	float: right;
+}
+.leftleg
+{
+	position: absolute;
+	top:324px;
+	right: 203px;
+	float: right;
+}
+.rightleg
+{
+	position: absolute;
+	top:328px;
+	right: 145px;
+	float: right;
+}
+.guitar
+{
+	position: absolute;
+	top:180px;
+	right: 50px;
+	float: right;
+}
+</style>
+
+<!--Find Paul's Ajax-->
+
+<script src="paulajax.js"></script>
+
+<script type="text/javascript">
+
+// Call possible solution bank with Paul's Ajax
+// Sixth (endcode) argument tells program to wait until ajax has loaded, and then run message_to_variable function
+exchange('random_answer', 'answerbank.php', '', '', '', 'message_to_variable()');
+
+// Initialize programwide variables
+
+var gameover = false;
+var message = "Loading, Please Wait";
+var blankedmessage;
+// var displaymessage;  No longer used
+var keychar; 
+var positionof = 0;
+var rightguesses = "";
+var wrongguesses = "";
+var numberwrongguesses = 0;
+
+// Keypress listener 
+
+document.onkeydown = checkKeycode;
+
+// FUNCTIONS
+
+//message_to_variable
+//Turns value of message produced by answerbank php script into a variable for use by this script.
+//in: php script output   out: string (message)
+
+function message_to_variable() {
+	message = document.getElementById("random_answer").innerHTML;
+	message = message.toUpperCase();
+	encode_message(message);
+}
+
+//encode_message
+//Turns message into blanks and prints the encoded message
+//in: string (message)   out: string (encoded message), event (displays blanked message)
+
+function encode_message () {
+	blankedmessage = message.replace(/[A-Z]/g, "_");
+	document.getElementById('DisplayMessage').innerHTML = blankedmessage;	
+}
+
+//display_message
+//NO LONGER FUNCTIONAL. Here, I was trying to workaround a visually confusing lack of space between characters in the displayed (blankified) message by inserting spaces between each letter. This also required temporarily swapping out existing spaces for a number eight which I could then replace with the HTML code for a space, since three spaces in a row are rendered as one space in HTML. In the end, I decided to use the CSS letter-spacing option to space out the letters instead. Now, all this function does is to display the blanked-out message in the appropriate place.
+//in: string (blankedmessage)  out: string (display message), event (displays message)
+//function display_message () {
+//	blankedmessage = blankedmessage.replace(/ /g, "8");
+//	var display_array = blankedmessage.split("");
+//	displaymessage = display_array.join(" ");
+//	displaymessage = displaymessage.replace(/8/g, "&nbsp;");
+//}
+
+
+// checkKeycode
+// Checks if the game is over, and if not, converts user keystroke from keycode to character.
+// in: event (keystroke)   out: keychar = character   triggers: posofLetter
+
+function checkKeycode(e) {
+	if (gameover == true) {
+		return false;
+	}
+	else {
+		var keycode;
+		if (!e) var e = window.event;
+		if (e.keyCode) keycode = e.keyCode;
+		else if (e.which) keycode = e.which;
+		keychar = String.fromCharCode(keycode);
+		checkforAlpha(keychar);
+	}
+}
+
+//checkforAlpha
+//Makes sure user has entered an alpha character.
+//in: character (keychar)  out: event (chiding message) or null  triggers: posofLetter
+
+function checkforAlpha() {
+	var notalphas = /[^A-Z]/
+	if (notalphas.test(keychar)) {
+	document.getElementById('Reinforcement').innerHTML = "Strategy hint: only type a letter."; 
+	}
+	else { posofLetter(keychar); }
+}
+
+//posofLetter
+//Determines the position of the first instance of the letter in the message. If the letter is not in the message, the position will be -1.
+//in: character (keychar), string (message)   out: character (keychar), int (positionof)  triggers: checkLetter
+
+function posofLetter() {
+	positionof = message.indexOf(keychar);
+	checkLetter(keychar);
+}
+
+// checkLetter
+// Determines if a letter is in the message. If yes, trigger checkNextletter. If no, trigger printWrongletter.
+// in: character (keychar), string (message)   out: character (keychar)
+
+function checkLetter() {
+	if (positionof == -1) {
+		document.getElementById('Reinforcement').innerHTML = "Sorry, there is no " + keychar + " in the message.";
+		printWrongletter(keychar);
+	}
+	else {
+		document.getElementById('Reinforcement').innerHTML = "Yes! " + keychar + " is on there.";
+		checkNextletter(keychar);
+	}
+
+}
+
+//checkNextletter
+//Looks for the next instance of the letter in the rest of the message. If there is none, it prints triggers printRightletter. If there is one, it prints the position, increments up the positionof variable, and calls itself to search again from that index.
+//in: character (keychar), int (positionof), string (message)   out: event (feedback on screen), printRightletter OR recursion.
+
+function checkNextletter() {
+	if (positionof == -1) {
+		printRightletter(keychar);
+	}
+	else {
+		positionof++;
+		updateBlanks(positionof);
+		positionof = message.indexOf(keychar, positionof);
+		checkNextletter(keychar);	
+	}
+}
+
+
+//updateBlanks
+// Updates the blanked out message to display the appropriate character at the appropriate place, and triggers winhuh to check for a win.
+// in: character (keychar), string (blankedmessage), int (positionof)  out: string (blankedmessage)  trigger: winhuh
+
+function updateBlanks(i) {
+	leftadjpos = i - 1;
+	lastpos = message.length;
+	blankedmessage = blankedmessage.substring(0, leftadjpos) + keychar + blankedmessage.substring (i, lastpos);
+	document.getElementById('DisplayMessage').innerHTML = blankedmessage;
+	winhuh();
+}
+
+//winhuh
+// Checks for a blank in the blanked message; if none, you win; if any, does nothing.
+// in: string (blankedmessage)  out: event (win message) OR null
+
+function winhuh() {
+	firstblankpos = blankedmessage.indexOf("_");
+	if (firstblankpos == -1) {
+		document.getElementById('Limbs').innerHTML = "<img class=head src=hanghead.png width=100 height=100><img class=head src=hangliveface.png width=100 height=100><img class=torso src=hangtorso.png width=25 height=200><img class=leftarm src=hangleftarm.png width=100 height=100><img class=rightarm src=hangrightarm.png width=100 height=100><img class=leftleg src=hangleftleg.png width=100 height=100><img class=rightleg src=hangrightleg.png width=100 height=100><img class=guitar src=hangguitar.png width=300 height=200>";
+		document.getElementById('Reinforcement').innerHTML = "<font size=+2><b>You Escaped the Hangman's Noose!</b></font><p><button onClick=\"window.location.reload()\">Play Again</button>";
+		gameover = true;
+	}
+	else { 
+	}
+} 
+
+
+//printRightletter
+// If the character being guessed is not in the Right Answer Bank,  adds it. Else, prints an error message.
+// in: character (keychar),   out: string (rightguesses) 
+
+function printRightletter() {
+	inbankhuh = rightguesses.indexOf(keychar);
+	if (inbankhuh == -1) {
+		rightguesses = rightguesses + keychar;
+		document.getElementById('RightGuesses').innerHTML = rightguesses;
+	}
+	else {
+		document.getElementById('Reinforcement').innerHTML = "You have already guessed that letter, and it was right.";
+		
+	}
+}
+
+
+// printWrongletter
+// If the character being guesses in not in the Wrong Answer Bank, adds it and counts it against you with countWrongletter. Else, print an error message.
+// in: keychar (character)   out: event (print on screen)  triggers: countWrongletter
+
+function printWrongletter() {
+	inbankhuh = wrongguesses.indexOf(keychar);
+	if (inbankhuh == -1) {
+		wrongguesses = wrongguesses + keychar;
+		document.getElementById('WrongGuesses').innerHTML = wrongguesses;
+		countWrongletter();
+	}
+	else {
+		document.getElementById('Reinforcement').innerHTML = "You have already guessed that letter, and it was wrong.";
+	}
+}
+
+
+//countWrongletter
+//Counts the number of wrong letter guesses.
+//in: null (only called if letter is wrong)  out: int (number of wrong guesses)
+
+function countWrongletter() {
+	numberwrongguesses++;
+	document.getElementById('NumberWrong').innerHTML = numberwrongguesses;
+	addLimb(numberwrongguesses);
+}
+
+
+// addLimb
+// Adds a limb to the hangman.
+// in: int (wrongguesses)  out: string (limb name)
+
+function addLimb(i) {
+	if (i == 1) {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=head src=hanghead.png width=100 height=100>";
+	}
+	else if (i == 2) {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=torso src=hangtorso.png width=25 height=200>";
+	}
+	else if (i == 3) {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=leftarm src=hangleftarm.png width=100 height=100>";
+	}
+	else if (i == 4) {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=rightarm src=hangrightarm.png width=100 height=100>";
+	}
+	else if (i == 5) {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=leftleg src=hangleftleg.png width=100 height=100>";
+	}
+	else if (i == 6) {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=rightleg src=hangrightleg.png width=100 height=100>";
+	}
+	else {
+		document.getElementById('Limbs').innerHTML = document.getElementById('Limbs').innerHTML + "<img class=head src=hangdeadface.png width=100 height=100>";
+		document.getElementById('Reinforcement').innerHTML = "<font size=+2><b>DEAD, DEAD, DEAD</b></font><p><button onClick=\"window.location.reload()\">Play Again</button";
+		gameover = true;
+	}		
+}
+
+</script>
+
+</head>
+<body>
+
+<div id=lynx><a class=lynx href="/">main</a></div>
+
+<h1>Hangman</h1>
+
+<div id=bodytext>
+<div class=specialtallbox>
+
+<span style=display:none id="random_answer"></span> 
+<span style=display:none id="NumberWrong"></span>
+
+<div class=specialsmallbox>
+<p>To guess a letter, type it on your keyboard.
+<p><font size=+1><b><span class="spacedletters" id="DisplayMessage"></span></b></font>
+<p><b>Right Guesses:</b> <span id="RightGuesses"></span>
+<p><b>Wrong Guesses:</b> <span id="WrongGuesses"></span>
+<p><span id="Reinforcement"></span>
+
+</div>
+
+<p><span id="Limbs"><img class="noose" src="hangingpost.png" width="220" height="470"></span>
+
+</div>
+</div>
+</body>
+</html> 
